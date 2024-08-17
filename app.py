@@ -1,43 +1,115 @@
-from flask import Flask, render_template, request
-import joblib
 import numpy as np
-
-# Load the model and scaler
-model = joblib.load('parkinsons_model.pkl')
-scaler = joblib.load('scaler.pkl')
+import pandas as pd
+from flask import Flask, request, render_template
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, confusion_matrix
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 app = Flask(__name__)
 
+# Load the dataset
+data = pd.read_csv("C:\\Users\\Acer\\Desktop\\CodeClause-2\\Heartdisease.csv")
+
+# Feature and target variables
+X = data.drop('target', axis=1)
+y = data['target']
+
+# Split the data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+# Standardize the data
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Train the model
+model = RandomForestClassifier(random_state=42)
+model.fit(X_train, y_train)
+
+# Make predictions
+y_pred = model.predict(X_test)
+
+# Calculate accuracy
+accuracy = accuracy_score(y_test, y_pred)
+
+import os
+import matplotlib.pyplot as plt
+
+# Other parts of your code for plotting and model evaluation
+
+# Define the directory and file path
+dir_path = 'static'
+file_path = os.path.join(dir_path, 'confusion_matrix.png')
+
+# Create the directory if it doesn't exist
+if not os.path.exists(dir_path):
+    os.makedirs(dir_path)
+
+# Plot and save the figure
+plt.figure()
+# ... (your plotting code here)
+plt.savefig(file_path)  # This is where you save the figure
+
+# Generate confusion matrix
+conf_matrix = confusion_matrix(y_test, y_pred)
+plt.figure(figsize=(6,4))
+sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues')
+plt.xlabel('Predicted')
+plt.ylabel('Actual')
+plt.title('Confusion Matrix')
+plt.savefig('static/confusion_matrix.png')
+
 @app.route('/')
-def home():
+def index():
     return render_template('index.html')
 
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
-        # Log received form values
-        print("Form data received:", request.form)
+        # Get form data
+        form_data = request.form
 
-        # Extracting the input features from the form
-        features = [float(x) for x in request.form.values()]
-        print("Processed features:", features)
+        # Convert form data to list of values
+        input_data = [
+            float(form_data['age']),
+            float(form_data['sex']),
+            float(form_data['cp']),
+            float(form_data['trestbps']),
+            float(form_data['chol']),
+            float(form_data['fbs']),
+            float(form_data['restecg']),
+            float(form_data['thalach']),
+            float(form_data['exang']),
+            float(form_data['oldpeak']),
+            float(form_data['slope']),
+            float(form_data['ca']),
+            float(form_data['thal'])
+        ]
 
-        final_features = [np.array(features)]
-        scaled_features = scaler.transform(final_features)
-        print("Scaled features:", scaled_features)
+        # Reshape and scale input data
+        input_data = np.array(input_data).reshape(1, -1)
+        input_data = scaler.transform(input_data)
 
-        # Predicting using the loaded model
-        prediction = model.predict(scaled_features)
-        print("Prediction result:", prediction)
+        # Predict using the model
+        prediction = model.predict(input_data)
 
-        # Interpreting the result
-        result = 'Parkinson\'s Disease Detected' if prediction[0] == 1 else 'No Parkinson\'s Disease Detected'
-        return render_template('index.html', prediction_text=result)
-    
+        # Convert prediction to human-readable format
+        if prediction[0] == 1:
+            prediction_text = "The patient is likely to have heart disease."
+        else:
+            prediction_text = "The patient is unlikely to have heart disease."
+
+        # Render the result
+        return render_template(
+            'index.html', 
+            prediction_text=prediction_text,
+            accuracy=f"Model Accuracy: {accuracy*100:.2f}%"
+        )
     except Exception as e:
-        # Log any errors that occur
-        print(f"Error occurred: {e}")
-        return render_template('index.html', prediction_text="An error occurred. Please try again.")
+        return str(e)
 
 if __name__ == "__main__":
     app.run(debug=True)
