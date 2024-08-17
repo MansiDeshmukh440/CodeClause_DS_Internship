@@ -3,35 +3,38 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
-import joblib
 
 # Load the dataset
-df = pd.read_csv("C:\\Users\\Acer\\Desktop\\CodeClause-2\\Heartdisease.csv")
+file_path = "C:\\Users\\Acer\\Desktop\\codeClause\\parkinsons.csv"
+data = pd.read_csv(file_path)
 
-# Preprocess the data (assume target is 'target' column)
-X = df.drop('target', axis=1)
-y = df['target']
+# Display the first few rows of the dataset
+print(data.head())
 
-# Train-test split
+# Features and Target variable
+X = data.drop(['name', 'status'], axis=1)  # Assuming 'status' is the target variable
+y = data['status']
+
+# Split the dataset into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Feature scaling
+# Feature Scaling
 scaler = StandardScaler()
 X_train = scaler.fit_transform(X_train)
 X_test = scaler.transform(X_test)
 
-# Model training
-model = RandomForestClassifier(random_state=42)
+# Model Training using RandomForestClassifier
+model = RandomForestClassifier(n_estimators=100, random_state=42)
 model.fit(X_train, y_train)
 
-# Model Evaluation
+# Model Prediction
 y_pred = model.predict(X_test)
+
+# Evaluation
 accuracy = accuracy_score(y_test, y_pred)
 print(f"Model Accuracy: {accuracy * 100:.2f}%")
 
-# Save the model, scaler, and accuracy
-joblib.dump(model, 'heart_disease_model.pkl')
+# Save the model and scaler for use in the Flask app
+import joblib
+joblib.dump(model, 'parkinsons_model.pkl')
 joblib.dump(scaler, 'scaler.pkl')
-
-with open('accuracy.txt', 'w') as f:
-    f.write(str(accuracy))
